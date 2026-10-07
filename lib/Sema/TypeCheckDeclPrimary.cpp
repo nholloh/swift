@@ -2503,6 +2503,7 @@ public:
 
     case MacroDefinition::Kind::Invalid:
     case MacroDefinition::Kind::Builtin:
+    case MacroDefinition::Kind::Internal:
     case MacroDefinition::Kind::Expanded:
       // Nothing else to check here.
       break;
@@ -3775,7 +3776,10 @@ public:
       diagnoseUntypedThrows(FD, throwsLoc);
     }
 
-    if (!checkOverrides(FD)) {
+    // A @cxx implementation's `override` keyword is checked against its C++
+    // declaration when it is matched to the imported method.
+    if (!checkOverrides(FD) &&
+        !FD->getAttrs().hasAttribute<CxxDeclAttr>(/*AllowInvalid=*/true)) {
       // If a method has an 'override' keyword but does not
       // override anything, complain.
       if (auto *OA = FD->getAttrs().getAttribute<OverrideAttr>()) {
@@ -4209,6 +4213,19 @@ public:
     if (throwsLoc.isValid() && !CD->getThrownTypeRepr() &&
         !CD->hasPolymorphicEffect(EffectKind::Throws)) {
       diagnoseUntypedThrows(CD, throwsLoc);
+    }
+
+    // If the class inherits from a C++ foreign reference type, prohibit
+    // failable and throwing initializers. There is no clear way to clean up the
+    // object if initialization fails.
+    if (auto classDecl = CD->getDeclContext()->getSelfClassDecl()) {
+      if (Ctx.LangOpts.hasFeature(Feature::ForeignReferenceTypeSubclassing) &&
+          !classDecl->hasClangNode() &&
+          classDecl->getForeignReferenceSuperclassOrSelf() &&
+          (CD->isFailable() || CD->hasThrows())) {
+        CD->diagnose(diag::foreign_reference_subclass_init_cannot_fail, CD,
+                     CD->isFailable());
+      }
     }
 
     // Check whether this initializer overrides an initializer in its

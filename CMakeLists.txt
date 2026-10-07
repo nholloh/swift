@@ -484,6 +484,26 @@ if(BRIDGING_MODE STREQUAL "DEFAULT" OR NOT BRIDGING_MODE)
   endif()
 endif()
 
+# LLVM_VERSION_MAJOR conditions for Swift sources in the compiler and Lit tests,
+# where (in)equality operations cannot be metaprogrammed.
+#
+# NB: Before you bump the below minimum, please make sure to audit all
+#     occurrences of LLVM_VERSION_MAJOR_AT_LEAST_<current minimum>.
+#
+set(SWIFT_MIN_SUPPORTED_LLVM_VERSION_MAJOR 23)
+if(LLVM_VERSION_MAJOR LESS ${SWIFT_MIN_SUPPORTED_LLVM_VERSION_MAJOR})
+  message(FATAL_ERROR
+    "LLVM_VERSION_MAJOR is ${LLVM_VERSION_MAJOR}, which is older than "
+    "SWIFT_MIN_SUPPORTED_LLVM_VERSION_MAJOR "
+    "(${SWIFT_MIN_SUPPORTED_LLVM_VERSION_MAJOR}).")
+endif()
+set(SWIFT_LLVM_VERSION_MAJOR_CONDITIONS)
+foreach(version RANGE ${SWIFT_MIN_SUPPORTED_LLVM_VERSION_MAJOR}
+                      ${LLVM_VERSION_MAJOR})
+  list(APPEND SWIFT_LLVM_VERSION_MAJOR_CONDITIONS
+    "LLVM_VERSION_MAJOR_AT_LEAST_${version}")
+endforeach()
+
 is_build_type_optimized("${SWIFT_STDLIB_BUILD_TYPE}" swift_optimized)
 if(swift_optimized)
   set(SWIFT_STDLIB_ASSERTIONS_default FALSE)
@@ -899,6 +919,8 @@ else()
   set(SWIFT_COMPILER_SWIFT_SOURCES_ENABLED FALSE)
 endif()
 
+# Turned off while swift-toolchain-sarif is not yet built in CI on every
+# host and the output is unexercised on Windows.
 option(SWIFT_BUILD_SARIF
   "Enable SARIF diagnostic serialization support (requires swift-toolchain-sarif)"
   FALSE)

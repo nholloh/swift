@@ -365,10 +365,12 @@ SerialExecutorRef _swift_getActiveExecutor() {
     return executor;
   }
 
+#if !SWIFT_CONCURRENCY_EMBEDDED
   // If there's no tracking and we're on the main thread, then the main
   // executor is notionally active.
   if (isExecutingOnMainThread())
     return swift_getMainExecutor();
+#endif
 
   return SerialExecutorRef::generic();
 }
@@ -1990,8 +1992,8 @@ void ProcessOutOfLineJob::process(Job *job) {
 
 void DefaultActorImpl::destroy() {
 #if SWIFT_CONCURRENCY_EMBEDDED
-  // Embedded runtime does not track the refcount inside deinit
-  // See swift_release_n_(object:,n:) in EmbeddedRuntime.swift
+  // swift_deallocClassInstance in EmbeddedRuntime.swift checks for a strong
+  // reference to self that outlived deinit.
 #else
   HeapObject *object = asAbstract(this);
   size_t retainCount = swift_retainCount(object);

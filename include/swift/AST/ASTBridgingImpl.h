@@ -914,6 +914,13 @@ BridgedCanType::SILFunctionType_getSubstGenericSignature() const {
               .getPointer()};
 }
 
+BridgedConformanceArray
+BridgedCanType::collectExistentialConformances(BridgedCanType existential) const {
+  return {swift::collectExistentialConformances(unbridged(),
+                                                existential.unbridged(),
+                                                /*allowMissing=*/ false)};
+}
+
 //===----------------------------------------------------------------------===//
 // MARK: BridgedASTTypeArray
 //===----------------------------------------------------------------------===//
@@ -963,6 +970,10 @@ BridgedDeclObj BridgedConformance::getRequirement() const {
 BridgedConformance BridgedConformance::getGenericConformance() const {
   auto *specPC = swift::cast<swift::SpecializedProtocolConformance>(unbridged().getConcrete());
   return {swift::ProtocolConformanceRef(specPC->getGenericConformance())};
+}
+
+BridgedConformance BridgedConformance::getCanonicalConformance() const {
+  return {unbridged().getCanonicalConformanceRef()};
 }
 
 BridgedConformance BridgedConformance::getInheritedConformance() const {

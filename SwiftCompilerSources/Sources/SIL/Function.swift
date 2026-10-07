@@ -71,6 +71,15 @@ final public class Function : CustomStringConvertible, HasShortDescription, Hash
     parentModule == context.currentModuleContext
   }
 
+  /// This function's SIL stage. Prefer this over `Context.stageFloor` for a
+  /// per-function query.
+  public var silStage: SILStage {
+    guard let stage = SILStage(rawValue: bridged.getStage()) else {
+      fatalError("unhandled SILStage")
+    }
+    return stage
+  }
+
   public var isTrapNoReturn: Bool { bridged.isTrapNoReturn() }
 
   public var isAutodiffVJP: Bool { bridged.isAutodiffVJP() }
@@ -358,7 +367,10 @@ final public class Function : CustomStringConvertible, HasShortDescription, Hash
   }
 
   public var isDeinitBarrier: Bool {
-    effects.sideEffects?.global.isDeinitBarrier ?? true
+    if hasSemanticsAttribute("realloc_array_buffer") {
+      return false
+    }
+    return effects.sideEffects?.global.isDeinitBarrier ?? true
   }
 
   public enum PerformanceConstraints {
